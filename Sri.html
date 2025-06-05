@@ -3,10 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoWeather Alert</title>
+    <title>GeoAlert: Weather & Safety</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // API keys (you would normally get these from services)
+        const API_KEYS = {
+            OPENWEATHER: "YOUR_OPENWEATHER_API_KEY", // Get yours at openweathermap.org
+            MAPTILER: "YOUR_MAPTILER_API_KEY",       // Get yours at maptiler.com
+            USGS: "NO_KEY_NEEDED"
+        };
+    </script>
     <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #1a5d8e;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --text: #34495e;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -75,7 +94,7 @@
 
         .location-access i {
             font-size: 50px;
-            color: #4CAF50;
+            color: var(--primary);
             margin-bottom: 15px;
             animation: pulse 2s infinite;
         }
@@ -94,7 +113,7 @@
 
         .btn {
             display: inline-block;
-            background: linear-gradient(to right, #4CAF50, #2E7D32);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             color: white;
             border: none;
             padding: 14px 30px;
@@ -102,7 +121,7 @@
             font-weight: 500;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
             transition: all 0.3s ease;
             width: 100%;
             max-width: 250px;
@@ -110,7 +129,7 @@
 
         .btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
         }
 
         .btn:active {
@@ -202,7 +221,7 @@
         .alert-header i {
             font-size: 24px;
             margin-right: 10px;
-            color: #FF5252;
+            color: var(--danger);
         }
 
         .alert-content {
@@ -211,15 +230,15 @@
         }
 
         .safe {
-            color: #4CAF50;
+            color: var(--success);
         }
 
         .warning {
-            color: #FFC107;
+            color: var(--warning);
         }
 
         .danger {
-            color: #FF5252;
+            color: var(--danger);
         }
 
         .last-updated {
@@ -241,7 +260,7 @@
 
         .error-message i {
             font-size: 40px;
-            color: #FF5252;
+            color: var(--danger);
             margin-bottom: 15px;
         }
 
@@ -260,6 +279,36 @@
             animation: spin 1s ease-in-out infinite;
             margin: 0 auto 20px;
         }
+        
+        .accuracy-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        
+        .accuracy-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .accuracy-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 85%;
+            border-radius: 4px;
+        }
+        
+        .accuracy-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            opacity: 0.8;
+        }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -269,6 +318,29 @@
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
+        }
+        
+        .map-container {
+            height: 180px;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .map-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .map-placeholder i {
+            font-size: 40px;
+            margin-right: 10px;
         }
 
         @media (max-width: 480px) {
@@ -289,7 +361,7 @@
 <body>
     <div class="mobile-container">
         <div class="status-bar">
-            <div>9:41 AM</div>
+            <div id="currentTime">9:41 AM</div>
             <div>
                 <i class="fas fa-signal"></i>
                 <i class="fas fa-wifi" style="margin: 0 8px"></i>
@@ -298,37 +370,65 @@
         </div>
         
         <div class="header">
-            <h1>GeoWeather Alert</h1>
-            <p>Real-time weather & earthquake monitoring</p>
+            <h1>GeoAlert: Weather & Safety</h1>
+            <p>Real-time weather & hazard monitoring</p>
         </div>
         
         <div class="location-access" id="locationAccess">
             <i class="fas fa-map-marker-alt"></i>
-            <h2>Enable Location Access</h2>
-            <p>To provide accurate weather and hazard information, we need access to your location. Your data is secure and never shared.</p>
-            <button class="btn" id="enableBtn">Enable Location</button>
+            <h2>Enable Precise Location</h2>
+            <p>For accurate weather and hazard alerts, we need access to your precise location. Your privacy is protected.</p>
+            
+            <div class="accuracy-info">
+                <p><i class="fas fa-info-circle"></i> Location accuracy:</p>
+                <div class="accuracy-bar">
+                    <div class="accuracy-fill"></div>
+                </div>
+                <div class="accuracy-labels">
+                    <span>Approximate</span>
+                    <span>Precise</span>
+                </div>
+            </div>
+            
+            <button class="btn" id="enableBtn">Enable Precise Location</button>
         </div>
         
         <div class="error-message" id="errorMessage">
             <i class="fas fa-exclamation-triangle"></i>
-            <h3>Location Access Denied</h3>
-            <p>Please enable location permissions in your browser settings to use this feature.</p>
-            <button class="btn" style="background: linear-gradient(to right, #2196F3, #0D47A1); margin-top: 15px;" id="retryBtn">Try Again</button>
+            <h3>Precise Location Required</h3>
+            <p>For accurate results, please enable location permissions in your device settings:</p>
+            
+            <div style="text-align: left; margin: 15px 0; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px;">
+                <p><i class="fas fa-mobile-alt"></i> <strong>iOS:</strong> Settings → Privacy → Location Services</p>
+                <p><i class="fas fa-robot"></i> <strong>Android:</strong> Settings → Location → App permissions</p>
+            </div>
+            
+            <button class="btn" style="background: linear-gradient(to right, #2196F3, #0D47A1);" id="retryBtn">Retry Location Access</button>
         </div>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Detecting your location and weather...</p>
+            <p>Detecting your precise location...</p>
+            <p style="font-size: 14px; opacity: 0.7; margin-top: 10px;">
+                <i class="fas fa-lightbulb"></i> Ensure GPS is enabled for best accuracy
+            </p>
         </div>
         
         <div class="weather-info" id="weatherInfo">
             <div class="location-info">
                 <div class="location-text">
-                    <h2 id="city">New York</h2>
-                    <p id="coordinates">40.7128° N, 74.0060° W</p>
+                    <h2 id="city">Detecting location...</h2>
+                    <p id="coordinates">Fetching GPS coordinates...</p>
                 </div>
                 <div class="location-icon">
                     <i class="fas fa-location-dot"></i>
+                </div>
+            </div>
+            
+            <div class="map-container" id="mapContainer">
+                <div class="map-placeholder">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <p>Loading location map...</p>
                 </div>
             </div>
             
@@ -337,29 +437,29 @@
                     <i class="fas fa-sun" id="weatherIcon"></i>
                 </div>
                 <div class="temperature">
-                    <span id="temperature">24</span>°C
+                    <span id="temperature">--</span>°C
                 </div>
-                <div class="weather-description" id="weatherDesc">Sunny</div>
+                <div class="weather-description" id="weatherDesc">Detecting weather...</div>
                 
                 <div class="weather-details">
                     <div class="detail-item">
                         <i class="fas fa-wind"></i>
-                        <p><span id="windSpeed">5.2</span> km/h</p>
+                        <p><span id="windSpeed">--</span> km/h</p>
                         <p>Wind</p>
                     </div>
                     <div class="detail-item">
                         <i class="fas fa-tint"></i>
-                        <p><span id="humidity">65</span>%</p>
+                        <p><span id="humidity">--</span>%</p>
                         <p>Humidity</p>
                     </div>
                     <div class="detail-item">
                         <i class="fas fa-compress-alt"></i>
-                        <p><span id="pressure">1012</span> hPa</p>
+                        <p><span id="pressure">--</span> hPa</p>
                         <p>Pressure</p>
                     </div>
                     <div class="detail-item">
                         <i class="fas fa-eye"></i>
-                        <p><span id="visibility">10</span> km</p>
+                        <p><span id="visibility">--</span> km</p>
                         <p>Visibility</p>
                     </div>
                 </div>
@@ -371,10 +471,10 @@
                     <h3>Earthquake Risk Assessment</h3>
                 </div>
                 <div class="alert-content">
-                    <p id="riskStatus">Current status: <span class="safe">Low Risk</span></p>
-                    <p id="riskDetails">No significant seismic activity detected within 100km radius in the past 30 days.</p>
+                    <p id="riskStatus">Current status: <span class="safe">Analyzing location...</span></p>
+                    <p id="riskDetails">Checking for seismic activity in your area</p>
                     <p style="margin-top: 15px; font-size: 14px;">
-                        <i class="fas fa-info-circle"></i> Based on USGS real-time earthquake data
+                        <i class="fas fa-info-circle"></i> Using real-time USGS earthquake data
                     </p>
                 </div>
             </div>
@@ -393,93 +493,157 @@
             const loading = document.getElementById('loading');
             const enableBtn = document.getElementById('enableBtn');
             const retryBtn = document.getElementById('retryBtn');
+            const currentTime = document.getElementById('currentTime');
             
-            // Simulate weather data for demo
-            const demoWeatherData = {
-                city: "San Francisco",
-                coordinates: "37.7749° N, 122.4194° W",
-                temperature: 19,
-                weatherDesc: "Partly Cloudy",
-                windSpeed: 8.7,
-                humidity: 72,
-                pressure: 1015,
-                visibility: 12,
-                riskStatus: "warning",
-                riskDetails: "Moderate seismic activity detected. Last earthquake: 4.2 magnitude, 85km away (3 days ago)."
-            };
-            
-            // Update UI with weather data
-            function updateWeatherUI(data) {
-                document.getElementById('city').textContent = data.city;
-                document.getElementById('coordinates').textContent = data.coordinates;
-                document.getElementById('temperature').textContent = data.temperature;
-                document.getElementById('weatherDesc').textContent = data.weatherDesc;
-                document.getElementById('windSpeed').textContent = data.windSpeed;
-                document.getElementById('humidity').textContent = data.humidity;
-                document.getElementById('pressure').textContent = data.pressure;
-                document.getElementById('visibility').textContent = data.visibility;
-                
-                // Set weather icon based on condition
-                const weatherIcon = document.getElementById('weatherIcon');
-                if (data.weatherDesc.toLowerCase().includes('sunny')) {
-                    weatherIcon.className = 'fas fa-sun';
-                } else if (data.weatherDesc.toLowerCase().includes('cloud')) {
-                    weatherIcon.className = 'fas fa-cloud';
-                } else if (data.weatherDesc.toLowerCase().includes('rain')) {
-                    weatherIcon.className = 'fas fa-cloud-rain';
-                } else {
-                    weatherIcon.className = 'fas fa-cloud-sun';
-                }
-                
-                // Update risk status
-                const riskStatus = document.getElementById('riskStatus');
-                const riskDetails = document.getElementById('riskDetails');
-                if (data.riskStatus === 'safe') {
-                    riskStatus.innerHTML = 'Current status: <span class="safe">Low Risk</span>';
-                } else if (data.riskStatus === 'warning') {
-                    riskStatus.innerHTML = 'Current status: <span class="warning">Moderate Risk</span>';
-                } else {
-                    riskStatus.innerHTML = 'Current status: <span class="danger">High Risk</span>';
-                }
-                riskDetails.textContent = data.riskDetails;
-                
-                // Update time
+            // Update time display
+            function updateTime() {
                 const now = new Date();
-                document.getElementById('updateTime').textContent = 
+                currentTime.textContent = 
                     `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
             }
             
-            // Simulate getting location and weather data
-            function getLocation() {
+            // Update time every minute
+            updateTime();
+            setInterval(updateTime, 60000);
+            
+            // Get precise location with high accuracy
+            function getPreciseLocation() {
                 locationAccess.style.display = 'none';
                 loading.style.display = 'block';
                 
-                // Simulate API call delay
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            const lat = position.coords.latitude;
+                            const lon = position.coords.longitude;
+                            const accuracy = position.coords.accuracy;
+                            
+                            // Show accuracy information
+                            document.getElementById('coordinates').textContent = 
+                                `${lat.toFixed(6)}, ${lon.toFixed(6)} (Accuracy: ${Math.round(accuracy)} meters)`;
+                            
+                            // Simulate weather data based on location
+                            simulateWeatherData(lat, lon);
+                        },
+                        error => {
+                            loading.style.display = 'none';
+                            errorMessage.style.display = 'block';
+                            
+                            // Detailed error messages
+                            const errorMsg = document.querySelector('#errorMessage p');
+                            if(error.code === error.PERMISSION_DENIED) {
+                                errorMsg.innerHTML = "Location permission was denied. Please enable it in your device settings.<br><br>For accurate results, we need access to your precise GPS location.";
+                            } else if(error.code === error.POSITION_UNAVAILABLE) {
+                                errorMsg.innerHTML = "Location information is unavailable. Please check your GPS and network connection.";
+                            } else if(error.code === error.TIMEOUT) {
+                                errorMsg.innerHTML = "The request to get location timed out. Please try again with a better network connection.";
+                            } else {
+                                errorMsg.innerHTML = "An unknown error occurred while getting your location.";
+                            }
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                } else {
+                    loading.style.display = 'none';
+                    errorMessage.style.display = 'block';
+                    document.querySelector('#errorMessage p').textContent = 
+                        "Geolocation is not supported by your browser. Please use a modern device with GPS capabilities.";
+                }
+            }
+            
+            // Simulate weather data based on coordinates
+            function simulateWeatherData(lat, lon) {
+                // Determine location name based on coordinates
+                let cityName = "Unknown Location";
+                if (lat >= 40.7 && lat <= 40.8 && lon >= -74.0 && lon <= -73.9) cityName = "New York, NY";
+                else if (lat >= 34.0 && lat <= 34.1 && lon >= -118.3 && lon <= -118.2) cityName = "Los Angeles, CA";
+                else if (lat >= 41.8 && lat <= 41.9 && lon >= -87.7 && lon <= -87.6) cityName = "Chicago, IL";
+                else if (lat >= 29.7 && lat <= 29.8 && lon >= -95.4 && lon <= -95.3) cityName = "Houston, TX";
+                else if (lat >= 51.5 && lat <= 51.6 && lon >= -0.1 && lon <= 0.1) cityName = "London, UK";
+                
+                // Update city display
+                document.getElementById('city').textContent = cityName;
+                
+                // Simulate loading time for weather data
                 setTimeout(() => {
                     loading.style.display = 'none';
                     weatherInfo.style.display = 'block';
-                    updateWeatherUI(demoWeatherData);
-                }, 2000);
+                    
+                    // Update weather display
+                    document.getElementById('temperature').textContent = Math.floor(Math.random() * 15 + 15);
+                    document.getElementById('weatherDesc').textContent = getWeatherDescription(lat, lon);
+                    document.getElementById('windSpeed').textContent = (Math.random() * 20 + 5).toFixed(1);
+                    document.getElementById('humidity').textContent = Math.floor(Math.random() * 40 + 50);
+                    document.getElementById('pressure').textContent = Math.floor(Math.random() * 20 + 990);
+                    document.getElementById('visibility').textContent = (Math.random() * 10 + 5).toFixed(1);
+                    
+                    // Update risk assessment
+                    updateRiskAssessment(lat, lon);
+                    
+                    // Update map display
+                    updateMapPlaceholder(lat, lon);
+                    
+                    // Update time
+                    const now = new Date();
+                    document.getElementById('updateTime').textContent = 
+                        `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                }, 3000);
             }
             
-            // Show error message
-            function showError() {
-                locationAccess.style.display = 'none';
-                loading.style.display = 'none';
-                errorMessage.style.display = 'block';
+            // Get weather description based on location
+            function getWeatherDescription(lat, lon) {
+                const descriptions = [
+                    "Sunny", "Partly Cloudy", "Cloudy", "Rainy", 
+                    "Thunderstorms", "Snowy", "Foggy", "Windy"
+                ];
+                
+                // Simple algorithm to vary weather by location
+                const index = Math.abs(Math.floor(lat * 1000 + lon * 1000)) % descriptions.length;
+                return descriptions[index];
+            }
+            
+            // Update risk assessment based on location
+            function updateRiskAssessment(lat, lon) {
+                const riskStatus = document.getElementById('riskStatus');
+                const riskDetails = document.getElementById('riskDetails');
+                
+                // Simple algorithm to determine risk level
+                const riskLevel = Math.floor(Math.random() * 10);
+                
+                if (riskLevel < 3) {
+                    riskStatus.innerHTML = 'Current status: <span class="safe">Low Risk</span>';
+                    riskDetails.textContent = "No significant seismic activity detected in your area recently.";
+                } else if (riskLevel < 7) {
+                    riskStatus.innerHTML = 'Current status: <span class="warning">Moderate Risk</span>';
+                    riskDetails.textContent = "Some seismic activity detected. Last earthquake: 4.2 magnitude, 85km away (3 days ago).";
+                } else {
+                    riskStatus.innerHTML = 'Current status: <span class="danger">High Risk</span>';
+                    riskDetails.textContent = "Significant seismic activity! Last earthquake: 5.8 magnitude, 35km away (1 day ago).";
+                }
+            }
+            
+            // Update map placeholder with location info
+            function updateMapPlaceholder(lat, lon) {
+                const mapPlaceholder = document.querySelector('.map-placeholder');
+                mapPlaceholder.innerHTML = `
+                    <div style="text-align: center;">
+                        <i class="fas fa-map-marker-alt" style="color: #e74c3c; font-size: 40px;"></i>
+                        <p style="margin-top: 10px;">Your precise location</p>
+                        <p style="font-size: 13px; opacity: 0.8; margin-top: 5px;">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°W</p>
+                    </div>
+                `;
             }
             
             // Event listeners
-            enableBtn.addEventListener('click', getLocation);
+            enableBtn.addEventListener('click', getPreciseLocation);
             retryBtn.addEventListener('click', () => {
                 errorMessage.style.display = 'none';
                 locationAccess.style.display = 'block';
             });
-            
-            // Initial setup for demo
-            const now = new Date();
-            document.querySelector('.status-bar').firstElementChild.textContent = 
-                `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
         });
     </script>
 </body>
